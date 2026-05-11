@@ -1,0 +1,144 @@
+import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// ONLY ADMIN CAN create employees
+export const createEmployee = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password, role, firstName, lastName, phone, department, reportingToId, serviceArea } = req.body;
+
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      if (existingUser.isActive) {
+        res.status(400).json({ message: 'User already exists' });
+        return;
+      } else {
+        // Old inactive user exists - clean it up so we can recreate
+        const oldEmployee = await prisma.employee.findUnique({ where: { userId: existingUser.id } });
+        if (oldEmployee) {
+          await prisma.gpsLog.deleteMany({ where: { employeeId: oldEmployee.id } });
+          await prisma.attendance.deleteMany({ where: { employeeId: oldEmployee.id } });
+          await prisma.message.deleteMany({ where: { OR: [{ senderId: oldEmployee.id }, { receiverId: oldEmployee.id }] } });
+          await prisma.employee.delete({ where: { id: oldEmployee.id } });
+        }
+        await prisma.user.delete({ where: { id: existingUser.id } });
+      }
+    }
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    const newEmployee = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          email,
+          passwordHash,
+          role: role || 'FIELD_EMPLOYEE'
+        }
+      });
+
+      const employee = await tx.employee.create({
+        data: {
+          userId: user.id,
+          firstName,
+          lastName,
+          phone,
+          department,
+          reportingToId,
+          serviceArea
+        }
+      });
+
+      return { user, employee };
+    });
+
+    res.status(201).json({ message: 'Employee created successfully', data: newEmployee });
+  } catch (error) {
+    console.error('Create employee error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const getEmployees = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const employees = await prisma.employee.findMany({
+      where: {
+        user: {
+          isActive: true
+        }
+      },
+      include: {
+        user: {
+          select: {
+            email: true,
+            role: true,
+            isActive: true
+          }
+        }
+      }
+    });
+    res.json(employees);
+  } catch (error) {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const updateEmployee = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, phone, department, serviceArea } = req.body;
+
+    const employee = await prisma.employee.update({
+      where: { id: id as string },
+      data: { firstName, lastName, phone, department, serviceArea }
+    });
+
+    res.json({ message: 'Employee updated', employee });
+  } catch (error) {
+    console.error('Update employee error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+export const deleteEmployee = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    
+    const employee = await prisma.employee.findUnique({ where: { id: id as string } });
+    if (!employee) {
+      res.status(404).json({ message: 'Employee not found' });
+      return;
+    }
+
+    // Perform hard delete within a transaction to handle relations
+    await prisma.$transaction(async (tx) => {
+      // Delete related records that would block deletion
+      await tx.gpsLog.deleteMany({ where: { employeeId: employee.id } });
+      await tx.attendance.deleteMany({ where: { employeeId: employee.id } });
+      await tx.message.deleteMany({ 
+        where: { 
+          OR: [{ senderId: employee.id }, { receiverId: employee.id }] 
+        } 
+      });
+      
+      // Delete employee record
+      await tx.employee.delete({ where: { id: employee.id } });
+      
+      // Delete user record
+      await tx.user.delete({ where: { id: employee.userId } });
+    });
+
+    // Notify all clients (especially the Admin map) to remove this employee marker
+    const io = req.app.get('socketio');
+    if (io) {
+      io.emit('employeeDeleted', { employeeId: employee.id });
+    }
+
+    res.json({ message: 'Employee deleted permanently' });
+  } catch (error) {
+    console.error('Delete employee error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
