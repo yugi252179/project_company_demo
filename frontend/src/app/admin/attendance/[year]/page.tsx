@@ -214,8 +214,8 @@ function AdminAttendanceContent() {
   return (
     <div className="flex h-screen bg-[#f8fafc] overflow-hidden">
       
-      {/* Year Sidebar */}
-      <div className="w-20 bg-white border-r border-slate-100 flex flex-col items-center py-8 gap-4 overflow-y-auto shrink-0">
+      {/* Year Sidebar - Hidden on mobile */}
+      <div className="hidden lg:flex w-20 bg-white border-r border-slate-100 flex-col items-center py-8 gap-4 overflow-y-auto shrink-0">
         <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white mb-4">
           <FiCalendar className="w-6 h-6" />
         </div>
@@ -239,53 +239,57 @@ function AdminAttendanceContent() {
         
         {/* Top Header */}
         <div className="p-4 md:p-6 bg-white border-b border-slate-100 shrink-0">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4 md:mb-6">
             <div>
-              <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Attendance</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Year: {selectedYear}</p>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl md:text-2xl font-black text-slate-800 tracking-tight">Attendance</h1>
+                {/* Year Dropdown for Mobile */}
+                <select 
+                  className="lg:hidden bg-slate-50 border-none rounded-lg text-xs font-black text-blue-600 px-2 py-1 outline-none"
+                  value={selectedYear}
+                  onChange={(e) => router.push(`/admin/attendance/${e.target.value}`)}
+                >
+                  {years.map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <p className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Personnel Management</p>
             </div>
             <div className="flex flex-wrap gap-2 w-full sm:w-auto">
               <button 
                 onClick={() => setIsManualModalOpen(true)}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-100"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-xl text-[11px] font-black hover:bg-blue-700 transition-all shadow-md shadow-blue-100"
               >
                 <FiPlus /> <span className="xs:inline">Mark Entry</span>
               </button>
               <button 
                 onClick={() => setIsHolidayModalOpen(true)}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 text-amber-600 rounded-xl text-xs font-bold hover:bg-amber-100 transition-all"
+                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-amber-50 text-amber-600 rounded-xl text-[11px] font-black hover:bg-amber-100 transition-all"
               >
                 <FiPlus /> <span className="xs:inline">Holiday</span>
-              </button>
-              <button 
-                onClick={handleExportExcel}
-                className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-slate-50 text-slate-600 rounded-xl text-xs font-bold hover:bg-slate-100 transition-all"
-              >
-                <FiDownload /> <span className="hidden md:inline">Export</span>
               </button>
             </div>
           </div>
 
           {/* Month Selector */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
             {MONTHS.map((month, idx) => (
               <button
                 key={month}
                 onClick={() => setSelectedMonth(idx)}
-                className={`px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all ${
+                className={`px-3.5 py-2 rounded-xl text-[11px] font-black whitespace-nowrap transition-all ${
                   selectedMonth === idx 
                     ? 'bg-blue-600 text-white shadow-lg shadow-blue-100' 
-                    : 'bg-white text-slate-500 hover:bg-slate-50 border border-slate-100'
+                    : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
                 }`}
               >
-                {month}
+                {month.substring(0, 3)}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Analytics Section */}
-        <div className="px-6 py-4">
+        {/* Analytics Section - Compressed on Mobile */}
+        <div className="px-4 py-3 md:px-6 md:py-4">
            <AttendanceAnalytics stats={stats} />
         </div>
 

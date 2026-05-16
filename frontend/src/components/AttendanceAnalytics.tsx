@@ -21,15 +21,15 @@ export default function AttendanceAnalytics({ stats }: AnalyticsProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 mb-4 md:mb-8">
       {cards.map((card, idx) => (
-        <div key={idx} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-all">
-          <div className={`${card.bg} p-4 rounded-2xl`}>
-            <card.icon className={`w-6 h-6 ${card.color}`} />
+        <div key={idx} className="bg-white p-3 md:p-6 rounded-2xl md:rounded-3xl shadow-sm border border-slate-100 flex items-center gap-2 md:gap-4 hover:shadow-md transition-all">
+          <div className={`${card.bg} p-2 md:p-4 rounded-xl md:rounded-2xl shrink-0`}>
+            <card.icon className={`w-4 h-4 md:w-6 md:h-6 ${card.color}`} />
           </div>
-          <div>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{card.title}</p>
-            <p className="text-2xl font-black text-slate-900">{card.value}</p>
+          <div className="min-w-0">
+            <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest truncate">{card.title}</p>
+            <p className="text-sm md:text-2xl font-black text-slate-900">{card.value}</p>
           </div>
         </div>
       ))}
