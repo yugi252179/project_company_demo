@@ -315,12 +315,19 @@ export default function AdminDashboard() {
                         {emp.department?.name || 'General Staff'}
                       </p>
                     </div>
-                    <div style={{
-                      width: '8px', height: '8px', borderRadius: '50%',
-                      background: emp.gpsLogs && emp.gpsLogs.length > 0 ? '#10b981' : '#e2e8f0',
-                      boxShadow: emp.gpsLogs && emp.gpsLogs.length > 0 ? '0 0 0 3px rgba(16,185,129,0.2)' : 'none',
-                      flexShrink: 0,
-                    }} />
+                    {(() => {
+                      const lastLog = emp.gpsLogs?.[0];
+                      const isFresh = lastLog && (new Date().getTime() - new Date(lastLog.timestamp).getTime()) < 5 * 60 * 1000;
+                      return (
+                        <div style={{
+                          width: '8px', height: '8px', borderRadius: '50%',
+                          background: isFresh ? '#10b981' : '#ef4444',
+                          boxShadow: isFresh ? '0 0 0 3px rgba(16,185,129,0.2)' : '0 0 0 3px rgba(239,68,68,0.2)',
+                          flexShrink: 0,
+                          animation: isFresh ? 'none' : 'pulse 2s infinite'
+                        }} />
+                      );
+                    })()}
                   </div>
                 );
               })
