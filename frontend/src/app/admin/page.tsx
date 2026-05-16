@@ -127,7 +127,7 @@ export default function AdminDashboard() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '32px' }}>
         <div>
           <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>
-            UltaServe Dashboard
+            Sonoray ERP Dashboard
           </h1>
           <p style={{ color: '#64748b', marginTop: '6px', fontWeight: 500, fontSize: '14px' }}>
             Welcome back, Admin · Here&rsquo;s your operations overview

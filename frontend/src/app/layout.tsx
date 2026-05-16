@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Employee Tracker ERP",
+  title: "Sonoray ERP",
   description: "Real-time employee location tracking system",
   manifest: "/manifest.json",
 };

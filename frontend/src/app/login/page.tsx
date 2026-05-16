@@ -107,7 +107,7 @@ export default function LoginPage() {
               </svg>
             </div>
             <h1 style={{ color: '#fff', fontSize: '28px', fontWeight: 800, letterSpacing: '-0.5px', margin: 0 }}>
-              UltaServe<span style={{ color: '#60a5fa' }}>ERP</span>
+              Sonoray<span style={{ color: '#60a5fa' }}>ERP</span>
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '13px', marginTop: '6px', fontWeight: 500 }}>
               Field Service Management Platform
@@ -143,7 +143,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="admin@ultaserve.com"
+                  placeholder="admin@sonoray.com"
                   className="input-field"
                   style={{
                     width: '100%', paddingLeft: '44px', paddingRight: '16px', paddingTop: '14px', paddingBottom: '14px',
@@ -226,7 +226,7 @@ export default function LoginPage() {
           </form>
 
           <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '12px', marginTop: '28px', fontWeight: 500 }}>
-            © 2026 UltaServe ERP · Secure Login
+            © 2026 Sonoray ERP · Secure Login
           </p>
         </div>
       </div>

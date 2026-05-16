@@ -105,7 +105,7 @@ export default function AddEmployeeModal({ isOpen, onClose, onSuccess }: AddEmpl
                 <input 
                   required
                   type="email" 
-                  placeholder="john@ultaserve.com"
+                  placeholder="john@sonoray.com"
                   className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm focus:ring-2 focus:ring-blue-500/20 outline-none"
                   value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})}

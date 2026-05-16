@@ -53,7 +53,7 @@ export default function Sidebar() {
   return (
     <div className="w-64 bg-white h-screen border-r border-slate-100 flex flex-col fixed left-0 top-0 shadow-sm">
       <div className="p-6 pb-4">
-        <h1 className="text-2xl font-black text-blue-600 tracking-tight">UltaServe<span className="text-slate-400">ERP</span></h1>
+        <h1 className="text-2xl font-black text-blue-600 tracking-tight">Sonoray<span className="text-slate-400">ERP</span></h1>
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
           {!mounted ? '...' : (role === 'ADMIN' || role === 'SUPER_ADMIN' ? 'Administrator' : 'Field Engineer')}
         </p>
