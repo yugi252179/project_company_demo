@@ -73,18 +73,29 @@ export default function AdminTrackingPage() {
     };
   }, []);
 
-  return (
-    <div className="flex flex-col h-[calc(100vh-6rem)] space-y-4">
-      <div className="flex justify-between items-end px-2">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Real-Time Field Map</h1>
-          <p className="text-slate-500">Live monitoring of service engineers across the region.</p>
+    const trackingCount = locations.filter(l => l.lat !== null).length;
+    const inactiveCount = locations.filter(l => l.isOnDuty && !l.lat).length;
+
+    return (
+      <div className="flex flex-col h-[calc(100vh-6rem)] space-y-4">
+        <div className="flex justify-between items-end px-2">
+          <div>
+            <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Real-Time Field Map</h1>
+            <p className="text-slate-500">Live monitoring of service engineers across the region.</p>
+          </div>
+          <div className="flex gap-2">
+            <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-xs font-bold border border-emerald-100 flex items-center gap-2">
+              <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
+              {trackingCount} Live Tracking
+            </div>
+            {inactiveCount > 0 && (
+              <div className="bg-rose-50 text-rose-700 px-4 py-2 rounded-full text-xs font-bold border border-rose-100 flex items-center gap-2">
+                <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                {inactiveCount} Location Off
+              </div>
+            )}
+          </div>
         </div>
-        <div className="bg-emerald-50 text-emerald-700 px-4 py-2 rounded-full text-xs font-bold border border-emerald-100 flex items-center gap-2">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-ping"></div>
-          {locations.length} Systems Active
-        </div>
-      </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
         {/* Sidebar Table */}
@@ -121,9 +132,20 @@ export default function AdminTrackingPage() {
                     </div>
 
                     {!loc.lat && loc.isOnDuty ? (
-                      <p className="text-[11px] text-rose-500 font-bold bg-rose-50 p-2 rounded-lg border border-rose-100 flex items-center gap-1">
-                        ⚠️ Location Turned Off
-                      </p>
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 animate-pulse">
+                          <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Connection Lost / GPS Off</span>
+                        </div>
+                        <p className="text-[11px] text-rose-400 bg-rose-50 p-2 rounded-lg border border-rose-100 flex items-center gap-1">
+                          ⚠️ Unable to track this device
+                        </p>
+                      </div>
+                    ) : !loc.lat ? (
+                      <div className="flex items-center gap-2 text-slate-400 italic text-[11px] p-2 bg-slate-50 rounded-lg">
+                        <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
+                        🛰️ Syncing location...
+                      </div>
                     ) : (
                       <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
                         {loc.address || 'Locating...'}
