@@ -67,7 +67,7 @@ app.use('/api/social', socialRouter);
 app.use('/api/tickets', ticketRouter);
 
 app.get('/', (req, res) => {
-  res.send('UltaServe ERP Backend is running! Use /health for status.');
+  res.send('Sonoray ERP Backend is running! Use /health for status.');
 });
 
 const httpServer = createServer(app);

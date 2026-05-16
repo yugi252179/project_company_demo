@@ -47,7 +47,7 @@ export const createMachine = async (req: Request, res: Response): Promise<void> 
       // Create a placeholder user for the manual customer
       const newUser = await prisma.user.create({
         data: {
-          email: email || `cust_${Date.now()}@ultaserve.com`,
+          email: email || `cust_${Date.now()}@sonoray.com`,
           passwordHash: 'manual_entry_no_login',
           role: 'CUSTOMER',
           isActive: false
