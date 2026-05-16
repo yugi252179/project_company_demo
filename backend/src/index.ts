@@ -66,6 +66,10 @@ app.use('/api/service', serviceRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/tickets', ticketRouter);
 
+app.get('/', (req, res) => {
+  res.send('UltaServe ERP Backend is running! Use /health for status.');
+});
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
