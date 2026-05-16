@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import AddStockModal from '../../../components/AddStockModal';
 import EditStockModal from '../../../components/EditStockModal';
-import { FiPlus, FiSearch, FiAlertTriangle, FiArrowUpRight, FiArrowDownRight, FiEdit2 } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiAlertTriangle, FiArrowUpRight, FiArrowDownRight, FiEdit2, FiPrinter } from 'react-icons/fi';
 
 interface StockItem {
   id: string;
@@ -103,7 +103,13 @@ export default function StockManagement() {
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Machine & Spare Stock</h1>
           <p className="text-slate-500 mt-1">Live inventory tracking for Ultrasound systems and parts.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 no-print">
+          <button 
+            onClick={() => window.print()}
+            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl flex items-center gap-2 hover:bg-slate-50 transition-all font-bold"
+          >
+            <FiPrinter /> Print Report
+          </button>
           <button 
             onClick={() => setIsModalOpen(true)}
             className="px-4 py-2.5 border border-slate-200 rounded-xl flex items-center gap-2 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-all font-medium"
@@ -137,7 +143,7 @@ export default function StockManagement() {
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="p-4 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between">
+        <div className="p-4 border-b border-slate-50 flex flex-col md:flex-row gap-4 items-center justify-between no-print">
           <div className="relative w-full max-w-md group">
             <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
             <input 
@@ -166,7 +172,7 @@ export default function StockManagement() {
                 <th className="px-6 py-4 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('warehouseLocation')}>Warehouse</th>
                 <th className="px-6 py-4 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleSort('quantity')}>Quantity</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 no-print text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -203,7 +209,7 @@ export default function StockManagement() {
                         {s.quantity > 0 ? 'In Stock' : 'Out of Stock'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right no-print">
                       <button 
                         onClick={() => handleEdit(s)}
                         className="p-2 hover:bg-blue-50 text-slate-400 hover:text-blue-600 rounded-lg transition-all"

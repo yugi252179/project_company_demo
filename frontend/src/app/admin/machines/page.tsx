@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiExternalLink } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiExternalLink, FiPrinter } from 'react-icons/fi';
 import AddMachineModal from '../../../components/AddMachineModal';
 import EditMachineModal from '../../../components/EditMachineModal';
 
@@ -147,15 +147,23 @@ export default function MachineManagement() {
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Machine Installations</h1>
           <p className="text-slate-500 mt-1">Track and manage all ultrasound machines deployed in hospitals.</p>
         </div>
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all shadow-md shadow-blue-200 font-bold"
-        >
-          <FiPlus className="stroke-[3px]" /> New Installation
-        </button>
+        <div className="flex gap-3 no-print">
+          <button 
+            onClick={() => window.print()}
+            className="px-5 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl flex items-center gap-2 hover:bg-slate-50 transition-all font-bold"
+          >
+            <FiPrinter /> Print Report
+          </button>
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 text-white px-5 py-2.5 rounded-xl flex items-center gap-2 hover:bg-blue-700 transition-all shadow-md shadow-blue-200 font-bold"
+          >
+            <FiPlus className="stroke-[3px]" /> New Installation
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4 items-center">
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex gap-4 items-center no-print">
         <div className="relative flex-1 group">
           <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
           <input 
@@ -180,7 +188,7 @@ export default function MachineManagement() {
                 <th className="px-6 py-4 cursor-pointer hover:text-blue-600" onClick={() => toggleSort('warrantyEndDate')}>Warranty Until</th>
                 <th className="px-6 py-4">Service Tracker</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+                <th className="px-6 py-4 no-print text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -203,7 +211,7 @@ export default function MachineManagement() {
                     <td className="px-6 py-4 text-sm text-slate-500 font-medium">{m.warrantyEndDate ? new Date(m.warrantyEndDate).toLocaleDateString() : 'N/A'}</td>
                     <td className="px-6 py-4">{getServiceProgress(m)}</td>
                     <td className="px-6 py-4">{getStatusBadge(m)}</td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right no-print">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
                         <button onClick={() => handleEdit(m)} className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><FiEdit2 className="w-4 h-4" /></button>
                         <button onClick={() => handleDelete(m.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><FiTrash2 className="w-4 h-4" /></button>
