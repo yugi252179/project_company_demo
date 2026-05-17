@@ -7,9 +7,12 @@
 
 ## 🚀 Recent Accomplishments
 - **Medical Inventory Expansion:** Added `make`, `modelNumber`, `serialNumber`, and `technicalSpecs` to the `machine_stock` database and UI.
-- **Mobile Optimization:** Implemented a responsive sidebar (hamburger menu) and converted the inventory table into **Mobile Cards** for easy viewing on phones.
-- **Data Features:** Added **CSV Export** for inventory and a **Smart Fill** logic in the backend to auto-populate missing medical brands and serial numbers.
-- **TablePlus Ready:** Database is configured for easy management via TablePlus.
+- **Draggable Leaflet Map Picker & Geolocation:** Integrated interactive map pickers in Add/Edit Machine modals and built silent live background GPS coordinate streaming (`BackgroundTracker.tsx`) upon employee punch-ins.
+- **WebRTC Camera Capture:** Enabled direct web camera snap captures and picture uploads inside machine installation modals.
+- **Admin Details Drawer Panel:** Designed a slide-over details modal on `admin/machines` displaying map pickers, custom snapshots, addresses, and instant Google Maps routing links.
+- **Squeezed Sidebar & Responsive Employee Layout:** Refactored static desktop margins `ml-64` in `employee/layout.tsx` to adaptive `md:ml-64 ml-0` with horizontal overflow protection, enabling all employee pages to auto-scale perfectly to full-screen on mobile phones.
+- **Admin Mobile Attendance Calendar Picker:** Fixed date-tap status options menu overlaying within the mobile calendar grid by introducing a position-relative cell container and calendar popover selections.
+- **Auto-Scaling Universal Login Page:** Handled responsive padding controls, input heights, and font boundaries to auto-scale glassmorphic cards on small screen sizes.
 
 ## 🛠 Tech Stack
 - **Frontend:** Next.js 14, Tailwind CSS, Lucide/React Icons.
@@ -35,4 +38,4 @@ The `machine_stock` table includes:
 4. **Prisma:** If new fields are added, run `npx prisma generate` in the backend folder.
 
 ---
-*Created by Antigravity AI on May 16, 2026*
+*Created by Antigravity AI on May 17, 2026*
