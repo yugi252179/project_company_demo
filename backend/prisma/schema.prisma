@@ -107,6 +107,11 @@ model MachineInstallation {
   probe5Serial      String?
   otherDevice       String?
   
+  latitude          Float?
+  longitude         Float?
+  address           String?   @db.Text
+  imageUrl          String?   @db.Text
+  
   tickets           Ticket[]
   serviceSchedules  ServiceSchedule[]
   createdAt         DateTime  @default(now())

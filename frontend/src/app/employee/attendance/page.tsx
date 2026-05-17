@@ -70,10 +70,16 @@ export default function EmployeeAttendancePage() {
         
         if (!todayRecord || todayRecord.status !== 'PRESENT') {
           setStatus('OUT');
+          localStorage.setItem('isPunchedIn', 'false');
+          window.dispatchEvent(new Event('attendance-change'));
         } else if (!todayRecord.punchOutTime) {
           setStatus('IN');
+          localStorage.setItem('isPunchedIn', 'true');
+          window.dispatchEvent(new Event('attendance-change'));
         } else {
           setStatus('OUT');
+          localStorage.setItem('isPunchedIn', 'false');
+          window.dispatchEvent(new Event('attendance-change'));
         }
       }
     } catch (error) {

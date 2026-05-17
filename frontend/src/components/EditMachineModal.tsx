@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiX, FiSave, FiPackage, FiCalendar, FiPlusSquare, FiHash, FiShield } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
+import { FiX, FiSave, FiPackage, FiCalendar, FiPlusSquare, FiHash, FiShield, FiCamera, FiMapPin, FiUploadCloud, FiTrash2 } from 'react-icons/fi';
+import dynamic from 'next/dynamic';
+
+const MapPickerNoSSR = dynamic(() => import('@/components/MapPickerComponent'), { ssr: false });
 
 interface EditMachineModalProps {
   isOpen: boolean;
@@ -14,6 +17,10 @@ export default function EditMachineModal({ isOpen, onClose, onSuccess, machine }
   const [loading, setLoading] = useState(false);
   const [hospitals, setHospitals] = useState<any[]>([]);
   
+  const [showCamera, setShowCamera] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+
   const [formData, setFormData] = useState({
     serialNumber: '',
     machineName: '',
@@ -31,7 +38,11 @@ export default function EditMachineModal({ isOpen, onClose, onSuccess, machine }
     probe3Model: '', probe3Serial: '',
     probe4Model: '', probe4Serial: '',
     probe5Model: '', probe5Serial: '',
-    otherDevice: ''
+    otherDevice: '',
+    latitude: '',
+    longitude: '',
+    address: '',
+    imageUrl: ''
   });
 
   useEffect(() => {
@@ -54,7 +65,11 @@ export default function EditMachineModal({ isOpen, onClose, onSuccess, machine }
         probe3Model: machine.probe3Model || '', probe3Serial: machine.probe3Serial || '',
         probe4Model: machine.probe4Model || '', probe4Serial: machine.probe4Serial || '',
         probe5Model: machine.probe5Model || '', probe5Serial: machine.probe5Serial || '',
-        otherDevice: machine.otherDevice || ''
+        otherDevice: machine.otherDevice || '',
+        latitude: machine.latitude !== undefined && machine.latitude !== null ? machine.latitude.toString() : '',
+        longitude: machine.longitude !== undefined && machine.longitude !== null ? machine.longitude.toString() : '',
+        address: machine.address || '',
+        imageUrl: machine.imageUrl || ''
       });
     }
   }, [isOpen, machine]);
@@ -73,6 +88,59 @@ export default function EditMachineModal({ isOpen, onClose, onSuccess, machine }
   };
 
   if (!isOpen) return null;
+
+  const startCamera = async () => {
+    try {
+      setShowCamera(true);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      streamRef.current = stream;
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
+    } catch (err) {
+      console.error('Camera access error:', err);
+      alert('Could not access camera. Please ensure permissions are granted or upload a file instead.');
+      setShowCamera(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setShowCamera(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoRef.current.videoWidth || 640;
+      canvas.height = videoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+        setFormData(prev => ({ ...prev, imageUrl: dataUrl }));
+      }
+      stopCamera();
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData(prev => ({ ...prev, imageUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +247,151 @@ export default function EditMachineModal({ isOpen, onClose, onSuccess, machine }
                    <option key={h.id} value={h.id}>{h.companyName}</option>
                  ))}
                </select>
+             </div>
+          </div>
+
+          {/* Section: Photo & Geolocation Picker */}
+          <div className="space-y-6 bg-slate-50/50 p-6 rounded-[2rem] border border-slate-100">
+             <div className="flex items-center gap-2 text-blue-600 font-black text-[10px] uppercase tracking-[0.2em]">
+                <div className="h-px bg-blue-100 flex-1"></div>
+                Photo & Geolocation Coordinates
+                <div className="h-px bg-blue-100 flex-1"></div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Geolocation Card */}
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1"><FiMapPin className="text-blue-600" /> Geolocation Pinning</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                              setFormData({
+                                ...formData,
+                                latitude: pos.coords.latitude.toFixed(6),
+                                longitude: pos.coords.longitude.toFixed(6)
+                              });
+                            },
+                            (err) => {
+                              alert('Could not retrieve device GPS location: ' + err.message);
+                            },
+                            { enableHighAccuracy: true }
+                          );
+                        } else {
+                          alert('Geolocation not supported by your browser.');
+                        }
+                      }}
+                      className="text-[9px] font-black uppercase px-3 py-1.5 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-100 transition-all cursor-pointer"
+                    >
+                      📍 Use Current GPS
+                    </button>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <input 
+                      type="number" 
+                      step="any"
+                      placeholder="Latitude (e.g. 20.59)"
+                      className="w-full px-4 py-3 bg-white border-none rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      value={formData.latitude}
+                      onChange={(e) => setFormData({...formData, latitude: e.target.value})}
+                    />
+                    <input 
+                      type="number" 
+                      step="any"
+                      placeholder="Longitude (e.g. 78.96)"
+                      className="w-full px-4 py-3 bg-white border-none rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10"
+                      value={formData.longitude}
+                      onChange={(e) => setFormData({...formData, longitude: e.target.value})}
+                    />
+                  </div>
+
+                  <MapPickerNoSSR 
+                    lat={formData.latitude ? parseFloat(formData.latitude) : null} 
+                    lng={formData.longitude ? parseFloat(formData.longitude) : null} 
+                    onChange={(lat, lng) => {
+                      setFormData({
+                        ...formData,
+                        latitude: lat.toFixed(6),
+                        longitude: lng.toFixed(6)
+                      });
+                    }}
+                  />
+                  
+                  <textarea
+                    placeholder="Manual/Installation Address (e.g., Hospital Room 102, Block A...)"
+                    className="w-full px-5 py-3 bg-white border-none rounded-2xl text-xs font-bold text-slate-700 focus:ring-4 focus:ring-blue-500/5 outline-none transition-all h-20 resize-none"
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                  />
+                </div>
+
+                {/* Photo Stream / Capture Card */}
+                <div className="space-y-4 flex flex-col">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-1"><FiCamera className="text-blue-600" /> Installation Photo</label>
+                  
+                  {!showCamera && !formData.imageUrl && (
+                    <div className="flex-1 border-2 border-dashed border-slate-200 rounded-3xl bg-white flex flex-col items-center justify-center p-6 text-center space-y-4 hover:border-blue-500 transition-colors min-h-[220px]">
+                      <FiUploadCloud className="w-10 h-10 text-slate-300" />
+                      <div>
+                        <p className="text-xs font-black text-slate-600">Drop an image or click to select</p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-1">PNG, JPG up to 5MB</p>
+                      </div>
+                      <div className="flex gap-2 justify-center">
+                        <label className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-black uppercase tracking-wider rounded-xl cursor-pointer transition-colors">
+                          Choose File
+                          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={startCamera}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors flex items-center gap-1 cursor-pointer"
+                        >
+                          <FiCamera /> Use Camera
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {showCamera && (
+                    <div className="flex-1 bg-black rounded-3xl overflow-hidden relative min-h-[240px] flex flex-col justify-end">
+                      <video ref={videoRef} autoPlay playsInline className="absolute inset-0 w-full h-full object-cover" />
+                      <div className="relative z-10 p-4 bg-gradient-to-t from-black/80 to-transparent flex gap-2 justify-center">
+                        <button
+                          type="button"
+                          onClick={capturePhoto}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
+                        >
+                          Capture Photo
+                        </button>
+                        <button
+                          type="button"
+                          onClick={stopCamera}
+                          className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {!showCamera && formData.imageUrl && (
+                    <div className="flex-1 bg-white border border-slate-100 rounded-3xl p-4 flex flex-col items-center justify-center relative group min-h-[240px]">
+                      <img src={formData.imageUrl} className="w-full h-full max-h-[200px] object-cover rounded-2xl" alt="Preview" />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+                        className="absolute inset-0 bg-slate-900/60 opacity-0 group-hover:opacity-100 backdrop-blur-xs flex items-center justify-center text-white text-xs font-black uppercase tracking-widest rounded-3xl transition-opacity flex-col gap-2 cursor-pointer"
+                      >
+                        <FiTrash2 className="w-6 h-6 text-rose-500 animate-bounce" />
+                        Remove Picture
+                      </button>
+                    </div>
+                  )}
+                </div>
              </div>
           </div>
 

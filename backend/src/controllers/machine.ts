@@ -22,6 +22,24 @@ export const getAllMachines = async (req: Request, res: Response): Promise<void>
   }
 };
 
+const parseDate = (val: any): Date | null => {
+  if (val === undefined || val === null || val === '' || val === 'null') return null;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const parseRequiredDate = (val: any): Date => {
+  if (!val) return new Date();
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? new Date() : d;
+};
+
+const parseFloatOrNull = (val: any): number | null => {
+  if (val === undefined || val === null || val === '') return null;
+  const parsed = parseFloat(val);
+  return isNaN(parsed) ? null : parsed;
+};
+
 export const createMachine = async (req: Request, res: Response): Promise<void> => {
   try {
     const { 
@@ -35,7 +53,8 @@ export const createMachine = async (req: Request, res: Response): Promise<void> 
       probe3Model, probe3Serial,
       probe4Model, probe4Serial,
       probe5Model, probe5Serial,
-      otherDevice
+      otherDevice,
+      latitude, longitude, address, imageUrl
     } = req.body;
 
     let finalCustomerId = customerId;
@@ -71,13 +90,13 @@ export const createMachine = async (req: Request, res: Response): Promise<void> 
       data: {
         serialNumber,
         machineName,
-        installationDate: new Date(installationDate),
+        installationDate: parseRequiredDate(installationDate),
         customerId: finalCustomerId,
         amount: amount ? parseFloat(amount) : 0,
-        warrantyStartDate: warrantyStartDate ? new Date(warrantyStartDate) : null,
-        warrantyEndDate: warrantyEndDate ? new Date(warrantyEndDate) : null,
-        amcStartDate: amcStartDate ? new Date(amcStartDate) : null,
-        amcEndDate: amcEndDate ? new Date(amcEndDate) : null,
+        warrantyStartDate: parseDate(warrantyStartDate),
+        warrantyEndDate: parseDate(warrantyEndDate),
+        amcStartDate: parseDate(amcStartDate),
+        amcEndDate: parseDate(amcEndDate),
         contractType: contractType || 'WARRANTY',
         status: 'ACTIVE',
         probe1Model, probe1Serial,
@@ -85,7 +104,11 @@ export const createMachine = async (req: Request, res: Response): Promise<void> 
         probe3Model, probe3Serial,
         probe4Model, probe4Serial,
         probe5Model, probe5Serial,
-        otherDevice
+        otherDevice,
+        latitude: parseFloatOrNull(latitude),
+        longitude: parseFloatOrNull(longitude),
+        address: address || null,
+        imageUrl: imageUrl || null
       }
     });
     res.status(201).json(machine);
@@ -98,23 +121,63 @@ export const createMachine = async (req: Request, res: Response): Promise<void> 
 export const updateMachine = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const data = { ...req.body };
     
-    // Parse numeric and date fields
-    if (data.amount) data.amount = parseFloat(data.amount);
-    if (data.installationDate) data.installationDate = new Date(data.installationDate);
-    if (data.warrantyStartDate) data.warrantyStartDate = new Date(data.warrantyStartDate);
-    if (data.warrantyEndDate) data.warrantyEndDate = new Date(data.warrantyEndDate);
-    if (data.amcStartDate) data.amcStartDate = new Date(data.amcStartDate);
-    if (data.amcEndDate) data.amcEndDate = new Date(data.amcEndDate);
+    // Whitelist only valid fields of MachineInstallation model to prevent Prisma errors
+    const allowedFields = [
+      'serialNumber', 'machineName', 'installationDate', 'customerId', 'amount',
+      'warrantyStartDate', 'warrantyEndDate', 'amcStartDate', 'amcEndDate',
+      'contractType', 'status', 'probe1Model', 'probe1Serial', 'probe2Model', 'probe2Serial',
+      'probe3Model', 'probe3Serial', 'probe4Model', 'probe4Serial', 'probe5Model', 'probe5Serial',
+      'otherDevice', 'latitude', 'longitude', 'address', 'imageUrl'
+    ];
+
+    const updateData: any = {};
+    for (const key of allowedFields) {
+      if (req.body[key] !== undefined) {
+        updateData[key] = req.body[key];
+      }
+    }
+
+    // Parse specific fields robustly
+    if (updateData.installationDate !== undefined) {
+      updateData.installationDate = parseRequiredDate(updateData.installationDate);
+    }
+    if (updateData.amount !== undefined) {
+      updateData.amount = parseFloatOrNull(updateData.amount);
+    }
+    if (updateData.latitude !== undefined) {
+      updateData.latitude = parseFloatOrNull(updateData.latitude);
+    }
+    if (updateData.longitude !== undefined) {
+      updateData.longitude = parseFloatOrNull(updateData.longitude);
+    }
+    if (updateData.warrantyStartDate !== undefined) {
+      updateData.warrantyStartDate = parseDate(updateData.warrantyStartDate);
+    }
+    if (updateData.warrantyEndDate !== undefined) {
+      updateData.warrantyEndDate = parseDate(updateData.warrantyEndDate);
+    }
+    if (updateData.amcStartDate !== undefined) {
+      updateData.amcStartDate = parseDate(updateData.amcStartDate);
+    }
+    if (updateData.amcEndDate !== undefined) {
+      updateData.amcEndDate = parseDate(updateData.amcEndDate);
+    }
+    if (updateData.address !== undefined) {
+      updateData.address = updateData.address || null;
+    }
+    if (updateData.imageUrl !== undefined) {
+      updateData.imageUrl = updateData.imageUrl || null;
+    }
 
     const machine = await prisma.machineInstallation.update({
       where: { id: id as string },
-      data
+      data: updateData
     });
     res.json(machine);
   } catch (error) {
-    res.status(500).json({ message: 'Server error' });
+    console.error('Update machine error:', error);
+    res.status(500).json({ message: 'Server error: ' + (error as any).message });
   }
 };
 

@@ -1,9 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiExternalLink, FiPrinter } from 'react-icons/fi';
+import { FiPlus, FiSearch, FiFilter, FiEdit2, FiTrash2, FiExternalLink, FiPrinter, FiX, FiMapPin, FiCompass, FiInfo, FiCamera } from 'react-icons/fi';
+import dynamic from 'next/dynamic';
 import AddMachineModal from '../../../components/AddMachineModal';
 import EditMachineModal from '../../../components/EditMachineModal';
+
+const MapComponentNoSSR = dynamic(() => import('@/components/MapComponent'), { ssr: false });
 
 interface Machine {
   id: string;
@@ -20,6 +23,16 @@ interface Machine {
   status: string;
   contractType: string;
   amount: number | null;
+  latitude: number | null;
+  longitude: number | null;
+  address: string | null;
+  imageUrl: string | null;
+  probe1Model?: string; probe1Serial?: string;
+  probe2Model?: string; probe2Serial?: string;
+  probe3Model?: string; probe3Serial?: string;
+  probe4Model?: string; probe4Serial?: string;
+  probe5Model?: string; probe5Serial?: string;
+  otherDevice?: string;
 }
 
 export default function MachineManagement() {
@@ -32,6 +45,7 @@ export default function MachineManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedMachine, setSelectedMachine] = useState<Machine | null>(null);
+  const [detailMachine, setDetailMachine] = useState<Machine | null>(null);
 
   useEffect(() => {
     fetchMachines();
@@ -213,9 +227,9 @@ export default function MachineManagement() {
                     <td className="px-6 py-4">{getStatusBadge(m)}</td>
                     <td className="px-6 py-4 text-right no-print">
                       <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                        <button onClick={() => handleEdit(m)} className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"><FiEdit2 className="w-4 h-4" /></button>
-                        <button onClick={() => handleDelete(m.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"><FiTrash2 className="w-4 h-4" /></button>
-                        <button className="p-2.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all"><FiExternalLink className="w-4 h-4" /></button>
+                        <button onClick={() => handleEdit(m)} className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all" title="Edit Installation"><FiEdit2 className="w-4 h-4" /></button>
+                        <button onClick={() => handleDelete(m.id)} className="p-2.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Delete Installation"><FiTrash2 className="w-4 h-4" /></button>
+                        <button onClick={() => setDetailMachine(m)} className="p-2.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-xl transition-all" title="View Details"><FiExternalLink className="w-4 h-4" /></button>
                       </div>
                     </td>
                   </tr>
@@ -238,6 +252,168 @@ export default function MachineManagement() {
         onSuccess={fetchMachines}
         machine={selectedMachine}
       />
+
+      {/* Installation Detail Modal */}
+      {detailMachine && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 my-8">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center sticky top-0 bg-white z-10">
+              <div>
+                <h2 className="text-2xl font-black text-slate-800 tracking-tight flex items-center gap-2">
+                  <FiInfo className="text-blue-600 animate-pulse" /> Installation Details
+                </h2>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">
+                  SN: {detailMachine.serialNumber} | {detailMachine.machineName}
+                </p>
+              </div>
+              <button 
+                onClick={() => setDetailMachine(null)} 
+                className="p-3 hover:bg-slate-50 rounded-2xl transition-colors cursor-pointer"
+              >
+                <FiX className="w-6 h-6 text-slate-400" />
+              </button>
+            </div>
+
+            <div className="p-8 space-y-8 max-h-[65vh] overflow-y-auto custom-scrollbar">
+              {/* Photo Banner if exists */}
+              {detailMachine.imageUrl ? (
+                <div className="relative h-64 rounded-3xl overflow-hidden group shadow-md">
+                  <img src={detailMachine.imageUrl} className="w-full h-full object-cover" alt="Installed Machine" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/10 to-transparent flex items-end p-6">
+                    <div>
+                      <span className="bg-blue-600 text-white text-[9px] font-black uppercase tracking-wider px-3 py-1 rounded-full">Deployed Device</span>
+                      <h3 className="text-lg font-bold text-white mt-1">{detailMachine.machineName}</h3>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-40 rounded-3xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2">
+                  <FiCamera className="w-8 h-8 text-slate-300" />
+                  <span className="text-xs font-bold">No Installation Image Attached</span>
+                </div>
+              )}
+
+              {/* Core Details Grid */}
+              <div className="grid grid-cols-2 gap-6 bg-slate-50 p-6 rounded-[2rem] border border-slate-100">
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Customer / Hospital</h4>
+                  <p className="text-sm font-bold text-slate-700">{detailMachine.customer?.companyName || 'N/A'}</p>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Sale Amount</h4>
+                  <p className="text-sm font-bold text-slate-700">{detailMachine.amount ? `₹${detailMachine.amount.toLocaleString()}` : 'N/A'}</p>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Contract Type</h4>
+                  <span className="bg-blue-50 text-blue-600 text-[10px] font-black uppercase tracking-wider px-3 py-1 rounded-full border border-blue-100 mt-1 inline-block">
+                    {detailMachine.contractType}
+                  </span>
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Deployment Date</h4>
+                  <p className="text-sm font-bold text-slate-700">{new Date(detailMachine.installationDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+
+              {/* Geolocation Section */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="text-sm font-black text-slate-800 flex items-center gap-1 uppercase tracking-wider">
+                    <FiMapPin className="text-blue-600" /> Physical Coordinates & Address
+                  </h3>
+                  {detailMachine.latitude && detailMachine.longitude && (
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${detailMachine.latitude},${detailMachine.longitude}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[9px] font-black text-blue-600 uppercase flex items-center gap-1 hover:underline cursor-pointer"
+                    >
+                      <FiCompass /> Get Directions <FiExternalLink />
+                    </a>
+                  )}
+                </div>
+
+                {detailMachine.latitude && detailMachine.longitude ? (
+                  <div className="space-y-3">
+                    <div className="h-52 rounded-3xl overflow-hidden border border-slate-100 shadow-sm relative">
+                      <MapComponentNoSSR
+                        locations={[{
+                          id: detailMachine.id,
+                          name: detailMachine.machineName,
+                          lat: Number(detailMachine.latitude),
+                          lng: Number(detailMachine.longitude),
+                          address: detailMachine.address
+                        }]}
+                        center={[Number(detailMachine.latitude), Number(detailMachine.longitude)]}
+                        zoom={14}
+                      />
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl text-xs font-bold text-slate-500 flex justify-between">
+                      <span>Latitude: {detailMachine.latitude}</span>
+                      <span>Longitude: {detailMachine.longitude}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="h-28 rounded-3xl bg-slate-50 border border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 gap-2">
+                    <FiMapPin className="w-6 h-6 text-slate-300" />
+                    <span className="text-xs font-bold">No Map Location Pins Found</span>
+                  </div>
+                )}
+
+                {detailMachine.address && (
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Manual Address Details</h4>
+                    <p className="text-xs font-bold text-slate-700 leading-relaxed">{detailMachine.address}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Probes and accessories details */}
+              <div className="space-y-4">
+                <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider">Device Configuration</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {[1, 2, 3, 4, 5].map(i => {
+                    const model = (detailMachine as any)[`probe${i}Model`];
+                    const serial = (detailMachine as any)[`probe${i}Serial`];
+                    if (!model && !serial) return null;
+                    return (
+                      <div key={i} className="bg-slate-50 p-4 rounded-2xl border border-slate-100 flex flex-col justify-center">
+                        <span className="text-[9px] font-black text-blue-600 uppercase tracking-wider mb-1">Probe Slot {i}</span>
+                        <span className="text-xs font-bold text-slate-800">{model || 'Unknown Model'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono mt-0.5">SN: {serial || 'N/A'}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {detailMachine.otherDevice && (
+                  <div className="bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
+                    <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Other Deployed Accessories</h4>
+                    <p className="text-xs font-bold text-slate-700 whitespace-pre-wrap">{detailMachine.otherDevice}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="p-8 border-t border-slate-100 bg-slate-50/50 flex gap-4">
+              <button 
+                onClick={() => {
+                  setDetailMachine(null);
+                  handleEdit(detailMachine);
+                }} 
+                className="flex-1 py-3.5 bg-blue-600 text-white rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-blue-100"
+              >
+                <FiEdit2 /> Edit Record
+              </button>
+              <button 
+                onClick={() => setDetailMachine(null)} 
+                className="flex-1 py-3.5 bg-white border border-slate-200 text-slate-600 rounded-2xl font-black uppercase tracking-widest text-[10px] hover:bg-slate-50 transition-all cursor-pointer"
+              >
+                Close View
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

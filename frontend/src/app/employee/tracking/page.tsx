@@ -1,28 +1,65 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { FiMapPin, FiWifi, FiRefreshCw, FiAlertCircle, FiClock, FiActivity } from 'react-icons/fi';
+import dynamic from 'next/dynamic';
+
+// Dynamically import Leaflet map to prevent SSR (Server-Side Rendering) issues
+const MapWithNoSSR = dynamic(
+  () => import('../../../components/MapComponent'),
+  { ssr: false, loading: () => (
+    <div style={{ height: '350px', background: '#f1f5f9', borderRadius: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', fontWeight: 600 }}>
+      Loading Tracking Map...
+    </div>
+  )}
+);
 
 export default function EmployeeTrackingPage() {
-  const [tracking, setTracking] = useState(false);
-  const [status, setStatus] = useState('Idle');
-  const [location, setLocation] = useState<{ lat: number, lng: number } | null>(null);
+  const [isPunchedIn, setIsPunchedIn] = useState(false);
+  const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [pendingSync, setPendingSync] = useState(0);
-  const [isPunchedIn, setIsPunchedIn] = useState(false);
-  const [lastPunch, setLastPunch] = useState<string | null>(null);
-  const watchIdRef = useRef<number | null>(null);
-  const socketRef = useRef<Socket | null>(null);
-  const wakeLockRef = useRef<any>(null);
+  const [syncing, setSyncing] = useState(false);
   const router = useRouter();
 
-  // Sync function to upload queued locations
-  const syncOfflineData = async () => {
-    const queue = JSON.parse(localStorage.getItem('offlineLocationQueue') || '[]');
-    if (queue.length === 0) return;
+  const syncPunchState = async () => {
+    const isPunched = localStorage.getItem('isPunchedIn') === 'true';
+    setIsPunchedIn(isPunched);
 
-    console.log(`Attempting to sync ${queue.length} offline locations...`);
+    // Sync queue length
+    const queue = JSON.parse(localStorage.getItem('offlineLocationQueue') || '[]');
+    setPendingSync(queue.length);
+
+    // Fetch latest address if active
+    if (isPunched) {
+      try {
+        const token = localStorage.getItem('token');
+        const employeeId = localStorage.getItem('employeeId');
+        if (token && employeeId) {
+          // Quick fetch to get current coordinates
+          navigator.geolocation.getCurrentPosition((pos) => {
+            setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+          });
+        }
+      } catch (e) {
+        // ignore
+      }
+    } else {
+      setCoords(null);
+      setAddress(null);
+    }
+  };
+
+  const handleManualSync = async () => {
+    setSyncing(true);
+    const queue = JSON.parse(localStorage.getItem('offlineLocationQueue') || '[]');
+    if (queue.length === 0) {
+      alert('No offline data to sync.');
+      setSyncing(false);
+      return;
+    }
+
     const token = localStorage.getItem('token');
     const remainingQueue = [];
 
@@ -32,9 +69,9 @@ export default function EmployeeTrackingPage() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
         });
         if (!res.ok) throw new Error('Sync failed');
       } catch (err) {
@@ -44,10 +81,16 @@ export default function EmployeeTrackingPage() {
 
     localStorage.setItem('offlineLocationQueue', JSON.stringify(remainingQueue));
     setPendingSync(remainingQueue.length);
+    setSyncing(false);
+    
+    if (remainingQueue.length === 0) {
+      alert('🎉 All offline updates synced successfully!');
+    } else {
+      alert(`Synced some updates, but ${remainingQueue.length} coordinates are still queued.`);
+    }
   };
 
   useEffect(() => {
-    // Check auth
     const token = localStorage.getItem('token');
     const employeeId = localStorage.getItem('employeeId');
     if (!token || !employeeId) {
@@ -55,304 +98,238 @@ export default function EmployeeTrackingPage() {
       return;
     }
 
-    // Initialize socket
-    socketRef.current = io(process.env.NEXT_PUBLIC_API_URL || '');
+    syncPunchState();
 
-    // Handle online event
-    const handleOnline = () => {
-      setStatus('Back Online - Syncing...');
-      syncOfflineData();
-    };
+    // Listen to punch state changes
+    window.addEventListener('attendance-change', syncPunchState);
 
-    window.addEventListener('online', handleOnline);
-    
-    // Periodically check queue
-    const syncInterval = setInterval(syncOfflineData, 30000);
+    // Poll to keep coordinates and address updated on dashboard
+    const interval = setInterval(() => {
+      const isPunched = localStorage.getItem('isPunchedIn') === 'true';
+      if (isPunched) {
+        // Get queue length
+        const queue = JSON.parse(localStorage.getItem('offlineLocationQueue') || '[]');
+        setPendingSync(queue.length);
 
-    // Initial check for pending sync
-    const queue = JSON.parse(localStorage.getItem('offlineLocationQueue') || '[]');
-    setPendingSync(queue.length);
-
-    // Check today's attendance status
-    const checkAttendance = async () => {
-      const token = localStorage.getItem('token');
-      const empId = localStorage.getItem('employeeId');
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/attendance?employeeId=${empId}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        // Get latest GPS update
+        navigator.geolocation.getCurrentPosition((pos) => {
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         });
-        const records = await res.json();
-        const today = new Date().toISOString().split('T')[0];
-        const todaysRecord = records.find((r: any) => r.date.startsWith(today));
-        if (todaysRecord) {
-          setIsPunchedIn(!todaysRecord.punchOutTime);
-          setLastPunch(todaysRecord.punchInTime);
-        }
-      } catch (err) {
-        console.error('Attendance check error', err);
       }
-    };
-    checkAttendance();
+    }, 10000);
 
     return () => {
-      if (watchIdRef.current !== null) {
-        navigator.geolocation.clearWatch(watchIdRef.current);
-      }
-      if (wakeLockRef.current !== null) {
-        wakeLockRef.current.release();
-      }
-      socketRef.current?.disconnect();
-      window.removeEventListener('online', handleOnline);
-      clearInterval(syncInterval);
+      window.removeEventListener('attendance-change', syncPunchState);
+      clearInterval(interval);
     };
   }, [router]);
 
-  const startTracking = () => {
-    if (!navigator.geolocation) {
-      setStatus('Geolocation is not supported by your browser');
-      return;
-    }
-
-    setTracking(true);
-    setStatus('Locating...');
-
-    // Request Wake Lock to prevent sleep
-    if ('wakeLock' in navigator) {
-      try {
-        (navigator as any).wakeLock.request('screen').then((lock: any) => {
-          wakeLockRef.current = lock;
-          console.log('Wake Lock Active');
-        });
-      } catch (err) {
-        console.error('Wake Lock error', err);
-      }
-    }
-
-    watchIdRef.current = navigator.geolocation.watchPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
-        setLocation({ lat: latitude, lng: longitude });
-        setStatus('Tracking Active');
-
-        const employeeId = localStorage.getItem('employeeId');
-        const token = localStorage.getItem('token');
-        
-        let batteryLevel = 100;
-        try {
-          if ('getBattery' in navigator) {
-            const battery: any = await (navigator as any).getBattery();
-            batteryLevel = Math.round(battery.level * 100);
-          }
-        } catch (e) {
-          // ignore
-        }
-
-        const payload = {
-          employeeId,
-          latitude,
-          longitude,
-          batteryLevel,
-          timestamp: new Date().toISOString()
-        };
-
-        // Emit real-time update
-        socketRef.current?.emit('updateLocation', payload);
-
-        // Try to save to DB
-        try {
-          const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/tracking/update`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify(payload)
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.log && data.log.address) {
-              setAddress(data.log.address);
-            }
-          } else {
-            throw new Error('Server error');
-          }
-        } catch (err) {
-          console.log('Offline: Queueing location update');
-          const queue = JSON.parse(localStorage.getItem('offlineLocationQueue') || '[]');
-          queue.push(payload);
-          localStorage.setItem('offlineLocationQueue', JSON.stringify(queue));
-          setPendingSync(queue.length);
-          setStatus('Offline - Data Queued');
-        }
-      },
-      (error) => {
-        setStatus(`Error: ${error.message}`);
-        setTracking(false);
-      },
-      {
-        enableHighAccuracy: true,
-        maximumAge: 10000,
-        timeout: 5000
-      }
-    );
-  };
-
-  const stopTracking = () => {
-    if (watchIdRef.current !== null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
-    }
-    if (wakeLockRef.current !== null) {
-      wakeLockRef.current.release();
-      wakeLockRef.current = null;
-    }
-    setTracking(false);
-    setStatus('Tracking Stopped');
-  };
-
-  const logout = () => {
-    localStorage.clear();
-    router.push('/login');
-  };
-
-  const handlePunchIn = async () => {
-    if (!location) {
-      alert('Please wait for location to lock before punching in');
-      return;
-    }
-    const token = localStorage.getItem('token');
-    const employeeId = localStorage.getItem('employeeId');
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/attendance/punch-in`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          employeeId,
-          latitude: location.lat,
-          longitude: location.lng
-        })
-      });
-      if (res.ok) {
-        setIsPunchedIn(true);
-        setLastPunch(new Date().toISOString());
-        alert('Punched in successfully!');
-      } else {
-        const data = await res.json();
-        alert(data.message);
-      }
-    } catch (err) {
-      console.error('Punch in error', err);
-    }
-  };
-
-  const handlePunchOut = async () => {
-    const token = localStorage.getItem('token');
-    const employeeId = localStorage.getItem('employeeId');
-    try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/attendance/punch-out`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ employeeId })
-      });
-      if (res.ok) {
-        setIsPunchedIn(false);
-        alert('Punched out successfully!');
-      } else {
-        const data = await res.json();
-        alert(data.message);
-      }
-    } catch (err) {
-      console.error('Punch out error', err);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100 p-4 md:p-6 flex flex-col items-center">
-      <div className="bg-white rounded-lg shadow-md w-full max-w-md p-5 md:p-6 mt-4 md:mt-10">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-800">Live Tracking</h1>
-          <div className="space-x-4">
-            <button onClick={() => router.push('/employee/chat')} className="text-sm text-blue-600 hover:text-blue-800">Chat</button>
-            <button onClick={logout} className="text-sm text-red-600 hover:text-red-800">Logout</button>
+    <div style={{ minHeight: '100vh', background: '#f8fafc', padding: '24px 32px' }}>
+      <style>{`
+        @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+        .fade-up { animation: fadeUp 0.5s cubic-bezier(.22,1,.36,1) both; }
+        .pulse-light {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          background: #10b981;
+          box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+          animation: pulseGlow 2s infinite;
+        }
+        @keyframes pulseGlow {
+          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.5); }
+          70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+        }
+      `}</style>
+
+      {/* Header */}
+      <div className="fade-up" style={{ marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+          <div style={{
+            background: 'linear-gradient(135deg, #3b82f6, #6366f1)', borderRadius: '10px',
+            padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <FiMapPin style={{ color: 'white', width: '18px', height: '18px' }} />
           </div>
+          <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+            GPS & Location Service
+          </h1>
         </div>
-        
-        <div className="mb-8 text-center">
-          <div className={`mx-auto flex items-center justify-center w-32 h-32 rounded-full border-4 ${tracking ? 'border-green-500 animate-pulse' : 'border-gray-300'}`}>
-            <span className={`text-5xl ${tracking ? 'text-green-500' : 'text-gray-400'}`}>
-              📍
-            </span>
-          </div>
-          <p className="mt-4 text-lg font-medium text-gray-700">{status}</p>
-          
-          {pendingSync > 0 && (
-            <div className="mt-2 bg-yellow-100 text-yellow-800 text-xs font-bold px-2 py-1 rounded inline-block">
-              {pendingSync} updates pending sync
-            </div>
-          )}
-
-          {location && (
-            <p className="text-sm text-gray-500 mt-2">
-              Lat: {location.lat.toFixed(5)}, Lng: {location.lng.toFixed(5)}
-            </p>
-          )}
-          {address && (
-            <p className="text-sm text-blue-600 mt-2 italic px-4">
-              {address}
-            </p>
-          )}
-        </div>
-
-        <div className="flex flex-col space-y-4">
-          {!isPunchedIn ? (
-            <button 
-              onClick={handlePunchIn}
-              className="w-full bg-green-600 text-white font-bold py-3 px-4 rounded shadow hover:bg-green-700 transition"
-            >
-              Punch In for Attendance
-            </button>
-          ) : (
-            <button 
-              onClick={handlePunchOut}
-              className="w-full bg-orange-600 text-white font-bold py-3 px-4 rounded shadow hover:bg-orange-700 transition"
-            >
-              Punch Out
-            </button>
-          )}
-
-          {!tracking ? (
-            <button 
-              onClick={startTracking}
-              className="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded shadow hover:bg-blue-700 transition"
-            >
-              Start Sharing Location
-            </button>
-          ) : (
-            <button 
-              onClick={stopTracking}
-              className="w-full bg-red-600 text-white font-bold py-3 px-4 rounded shadow hover:bg-red-700 transition"
-            >
-              Stop Sharing
-            </button>
-          )}
-        </div>
+        <p style={{ color: '#64748b', fontWeight: 500, fontSize: '14px', margin: 0 }}>
+          Your duty tracking status and real-time telemetry
+        </p>
       </div>
-      
-      {lastPunch && (
-        <div className="mt-4 text-sm text-gray-600">
-          Last Punch In: {new Date(lastPunch).toLocaleString()}
+
+      <div style={{ display: 'grid', gridTemplateColumns: '360px 1fr', gap: '24px' }}>
+        
+        {/* Left Side: Status Console */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Main Status Panel */}
+          <div className="fade-up" style={{
+            background: 'white', borderRadius: '24px', padding: '28px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.04)',
+            animationDelay: '0.05s',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <span style={{ fontSize: '11px', fontWeight: 800, color: '#64748b', textTransform: 'uppercase', letterSpacing: '1px' }}>Service Status</span>
+              {isPunchedIn ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ecfdf5', color: '#047857', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
+                  <div className="pulse-light" />
+                  Streaming Live
+                </div>
+              ) : (
+                <div style={{ background: '#f1f5f9', color: '#64748b', padding: '6px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: 800 }}>
+                  Off Duty
+                </div>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', margin: '24px 0' }}>
+              <div style={{
+                width: '72px', height: '72px', borderRadius: '20px',
+                background: isPunchedIn ? '#eff6ff' : '#f8fafc',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+                transition: 'all 0.3s',
+              }}>
+                <FiActivity style={{ color: isPunchedIn ? '#3b82f6' : '#94a3b8', width: '32px', height: '32px' }} />
+              </div>
+              <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#0f172a', margin: '0 0 6px' }}>
+                {isPunchedIn ? 'Location Sync Active' : 'GPS Tracking Suspended'}
+              </h3>
+              <p style={{ fontSize: '13px', color: '#64748b', lineHeight: 1.5, margin: 0, padding: '0 10px' }}>
+                {isPunchedIn 
+                  ? 'Your GPS location is securely broadcasting to the team dashboard while you are punched in.'
+                  : 'You are currently punched out. No location coordinates are being sent, preserving your battery and privacy.'}
+              </p>
+            </div>
+
+            <hr style={{ border: 0, borderTop: '1px solid #f1f5f9', margin: '20px 0' }} />
+
+            {/* Live Telemetry Info */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Latitude:</span>
+                <span style={{ color: '#0f172a', fontWeight: 800 }}>{coords ? coords.lat.toFixed(6) : '--'}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                <span style={{ color: '#64748b', fontWeight: 600 }}>Longitude:</span>
+                <span style={{ color: '#0f172a', fontWeight: 800 }}>{coords ? coords.lng.toFixed(6) : '--'}</span>
+              </div>
+              {address && (
+                <div style={{ fontSize: '12px', color: '#3b82f6', background: '#eff6ff', padding: '10px 14px', borderRadius: '12px', fontWeight: 600, marginTop: '8px', lineHeight: 1.4 }}>
+                  📍 {address}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Offline Sync Controls */}
+          <div className="fade-up" style={{
+            background: 'white', borderRadius: '24px', padding: '24px 28px',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.04)',
+            animationDelay: '0.1s',
+          }}>
+            <h3 style={{ fontSize: '15px', fontWeight: 800, color: '#0f172a', margin: '0 0 4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <FiWifi style={{ color: '#3b82f6' }} />
+              Offline Buffer
+            </h3>
+            <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 16px', lineHeight: 1.4 }}>
+              If you lose internet connection, coordinates are stored locally and will sync when you are online.
+            </p>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '12px 16px', borderRadius: '16px', marginBottom: '16px' }}>
+              <span style={{ fontSize: '13px', fontWeight: 700, color: '#475569' }}>Queued Logs:</span>
+              <span style={{
+                fontSize: '13px', fontWeight: 800, 
+                color: pendingSync > 0 ? '#d97706' : '#10b981',
+                background: pendingSync > 0 ? '#fffbeb' : '#f0fdf4',
+                padding: '4px 10px', borderRadius: '8px',
+              }}>
+                {pendingSync} logs
+              </span>
+            </div>
+
+            <button
+              onClick={handleManualSync}
+              disabled={syncing || pendingSync === 0}
+              style={{
+                width: '100%', padding: '14px',
+                background: pendingSync > 0 ? 'linear-gradient(135deg, #3b82f6, #6366f1)' : '#f1f5f9',
+                color: pendingSync > 0 ? 'white' : '#94a3b8',
+                border: 'none', borderRadius: '14px', fontSize: '13px', fontWeight: 800,
+                cursor: (syncing || pendingSync === 0) ? 'not-allowed' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                transition: 'all 0.2s',
+                boxShadow: pendingSync > 0 ? '0 4px 18px rgba(99, 102, 241, 0.25)' : 'none',
+              }}
+            >
+              <FiRefreshCw className={syncing ? 'spin-icon' : ''} />
+              {syncing ? 'Syncing...' : 'Force Upload Offline Logs'}
+            </button>
+          </div>
+
+          {/* Quick Info Box */}
+          <div className="fade-up" style={{
+            background: 'linear-gradient(135deg, #1e293b, #0f172a)', borderRadius: '24px', padding: '24px 28px',
+            color: 'rgba(255,255,255,0.7)', fontSize: '12px', lineHeight: 1.5,
+            animationDelay: '0.15s',
+          }}>
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+              <FiClock style={{ color: '#60a5fa', width: '18px', height: '18px', flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <h4 style={{ color: 'white', margin: '0 0 4px', fontWeight: 800, fontSize: '13px' }}>How it works:</h4>
+                <p style={{ margin: 0 }}>Simply click <strong>Punch In</strong> on your attendance page when starting your shift. Your location sharing starts automatically and streaming coordinates live. <strong>Punch Out</strong> to immediately turn it off.</p>
+              </div>
+            </div>
+          </div>
         </div>
-      )}
-      
-      <div className="mt-6 text-center text-gray-500 text-sm max-w-xs">
-        <p>This app tracks your location even when you are offline. All data will be synced when your connection returns.</p>
+
+        {/* Right Side: Map Viewer */}
+        <div className="fade-up" style={{
+          background: 'white', borderRadius: '28px', padding: '16px',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.04)',
+          animationDelay: '0.1s', display: 'flex', flexDirection: 'column', height: 'calc(100vh - 120px)', minHeight: '500px',
+        }}>
+          <div style={{ padding: '8px 12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#0f172a', margin: 0 }}>Live Position Map</h3>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '2px 0 0', fontWeight: 500 }}>Your broadcast center verified by Leaflet Engine</p>
+            </div>
+            {coords && (
+              <div style={{ background: '#eff6ff', color: '#2563eb', padding: '6px 12px', borderRadius: '10px', fontSize: '11px', fontWeight: 800 }}>
+                Signal: Excellent
+              </div>
+            )}
+          </div>
+
+          <div style={{ flex: 1, borderRadius: '20px', overflow: 'hidden', border: '1px solid #e2e8f0', position: 'relative' }}>
+            {coords ? (
+              <MapWithNoSSR 
+                locations={[{
+                  id: 'me',
+                  name: 'My Position',
+                  lat: coords.lat,
+                  lng: coords.lng,
+                  batteryLevel: 100,
+                  timestamp: new Date().toISOString(),
+                  address: address || 'Broadcasting live position'
+                }]}
+              />
+            ) : (
+              <div style={{ height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', color: '#64748b', textAlign: 'center', padding: '0 40px' }}>
+                <FiMapPin style={{ width: '48px', height: '48px', color: '#cbd5e1', marginBottom: '16px' }} />
+                <h3 style={{ fontSize: '16px', fontWeight: 800, color: '#475569', margin: '0 0 6px' }}>Map Offline</h3>
+                <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '300px', margin: 0, lineHeight: 1.4 }}>
+                  Once you Punch In on your Attendance page, your live coordinates will map here in real-time.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
