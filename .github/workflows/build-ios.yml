@@ -1,4 +1,4 @@
-name: 📱 Build Sonoray ERP iOS App
+name: 📱 Build Sonoray ERP iOS App (Check)
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ios:
-    name: Build iOS IPA Package
+  build-check:
+    name: Verify iOS Web Assets Compilation
     runs-on: macos-latest
 
     steps:
@@ -35,35 +35,6 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
 
-      - name: Setup CocoaPods
+      - name: Log Status
         run: |
-          sudo gem install cocoapods
-
-      - name: Setup iOS Development Certificates
-        run: |
-          echo "Setting up temporary keychain and importing development certificates..."
-          # Note: Real production iOS builds require a registered Apple Developer Account.
-          # Under active deployment, you would store your provisioning profile (.mobileprovision)
-          # and p12 certificate (.p12) in GitHub Action Secrets, then import them here.
-        env:
-          BUILD_CERTIFICATE_BASE64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
-          P12_PASSWORD: ${{ secrets.P12_PASSWORD }}
-          BUILD_PROVISION_PROFILE_BASE64: ${{ secrets.BUILD_PROVISION_PROFILE_BASE64 }}
-          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
-
-      - name: Build and Package iOS Application (.ipa)
-        run: |
-          echo "Building iOS workspace project..."
-          # Standard Capacitor or Cordova command to compile the native iOS assets:
-          # npx cap sync ios
-          # xcodebuild -workspace ios/App/App.xcworkspace -scheme App -sdk iphoneos -configuration Release archive -archivePath $PWD/build/App.xcarchive
-          # xcodebuild -exportArchive -archivePath $PWD/build/App.xcarchive -exportOptionsPlist ios/App/exportOptions.plist -exportPath $PWD/build/out
-        
-      - name: Upload iOS Package Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: sonoray-erp-ios
-          path: |
-            frontend/ios/App/build/out/*.ipa
-            build/out/*.ipa
-          if-no-files-found: warn
+          echo "✅ Web assets compiled successfully and ready for Xcode sync!"
