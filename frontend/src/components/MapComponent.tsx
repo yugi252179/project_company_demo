@@ -69,6 +69,15 @@ export default function MapComponent({ locations, center = [0, 0], zoom = 2 }: M
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {locations.filter(l => l.lat !== null && l.lng !== null).map((loc) => {
+          const greyIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-grey.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          });
+
           const redIcon = new L.Icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
             shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
@@ -78,18 +87,45 @@ export default function MapComponent({ locations, center = [0, 0], zoom = 2 }: M
             shadowSize: [41, 41]
           });
 
+          const greenIcon = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+          });
+
+          let currentIcon = greenIcon;
+          if (loc.isOnDuty === false) {
+            currentIcon = greyIcon;
+          } else if (loc.isStale) {
+            currentIcon = redIcon;
+          }
+
           return (
             <Marker 
               key={loc.id} 
               position={[loc.lat!, loc.lng!]} 
-              icon={loc.isStale ? redIcon : new L.Icon.Default()}
+              icon={currentIcon}
             >
               <Popup>
                 <div className="p-1">
-                  <p className="font-bold text-slate-800">{loc.name}</p>
+                  <div className="flex items-center justify-between gap-4 mb-1">
+                    <p className="font-bold text-slate-800">{loc.name}</p>
+                    <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${
+                      loc.isOnDuty === false
+                        ? 'bg-slate-100 text-slate-500'
+                        : loc.isStale
+                          ? 'bg-rose-100 text-rose-600'
+                          : 'bg-emerald-100 text-emerald-700'
+                    }`}>
+                      {loc.isOnDuty === false ? 'Off Duty' : loc.isStale ? 'Stale' : 'On Duty'}
+                    </span>
+                  </div>
                   {loc.address && <p className="text-xs text-slate-500 mt-1">{loc.address}</p>}
                   <div className="flex items-center gap-4 mt-2 border-t pt-2 border-slate-100">
-                    {loc.batteryLevel !== undefined && (
+                    {loc.batteryLevel !== undefined && loc.batteryLevel !== null && (
                       <span className="text-[10px] font-bold text-slate-400">🔋 {loc.batteryLevel}%</span>
                     )}
                     {loc.timestamp && (

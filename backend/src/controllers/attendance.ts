@@ -62,6 +62,29 @@ export const punchIn = async (req: any, res: Response): Promise<void> => {
       }
     });
 
+    // Notify admin via socket that the employee punched in
+    const io = (req as any).app.get('socketio');
+    if (io) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { firstName: true, lastName: true, user: { select: { email: true, role: true } } }
+      });
+      if (employee) {
+        io.emit('employeeLocationUpdate', {
+          employeeId,
+          name: `${employee.firstName} ${employee.lastName}`,
+          email: employee.user.email,
+          role: employee.user.role,
+          isOnDuty: true,
+          isStale: false,
+          latitude: null,
+          longitude: null,
+          address: 'Punched In (On Duty)',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+
     res.status(201).json(attendance);
   } catch (error) {
     console.error('Punch in error:', error);
@@ -101,6 +124,27 @@ export const punchOut = async (req: any, res: Response): Promise<void> => {
         punchOutTime: new Date()
       }
     });
+
+    // Notify admin via socket that the employee punched out
+    const io = (req as any).app.get('socketio');
+    if (io) {
+      const employee = await prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { firstName: true, lastName: true, user: { select: { email: true, role: true } } }
+      });
+      if (employee) {
+        io.emit('employeeLocationUpdate', {
+          employeeId,
+          name: `${employee.firstName} ${employee.lastName}`,
+          email: employee.user.email,
+          role: employee.user.role,
+          isOnDuty: false,
+          isStale: false,
+          address: 'Punched Out (Off Duty)',
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
 
     res.json(updated);
   } catch (error) {

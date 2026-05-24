@@ -78,11 +78,13 @@ export default function AdminTrackingPage() {
         const updatedLoc: LocationData = {
           id: data.employeeId,
           name: data.name || (index >= 0 ? prev[index].name : 'Employee'),
-          lat: data.latitude,
-          lng: data.longitude,
-          address: data.address || 'Locating...',
-          batteryLevel: data.batteryLevel,
-          timestamp: new Date().toISOString()
+          lat: data.latitude !== undefined && data.latitude !== null ? data.latitude : (index >= 0 ? prev[index].lat : null),
+          lng: data.longitude !== undefined && data.longitude !== null ? data.longitude : (index >= 0 ? prev[index].lng : null),
+          isOnDuty: data.isOnDuty !== undefined ? data.isOnDuty : (index >= 0 ? prev[index].isOnDuty : false),
+          isStale: data.isStale !== undefined ? data.isStale : (index >= 0 ? prev[index].isStale : false),
+          address: data.address || (index >= 0 ? prev[index].address : 'Locating...'),
+          batteryLevel: data.batteryLevel !== undefined && data.batteryLevel !== null ? data.batteryLevel : (index >= 0 ? prev[index].batteryLevel : null),
+          timestamp: data.timestamp || new Date().toISOString()
         };
 
         // Try client-side geocode if coordinates/Locating
@@ -130,8 +132,9 @@ export default function AdminTrackingPage() {
     };
   }, [selectedId]);
 
-    const trackingCount = locations.filter(l => l.lat !== null && !l.isStale).length;
+    const trackingCount = locations.filter(l => l.lat !== null && l.isOnDuty && !l.isStale).length;
     const inactiveCount = locations.filter(l => l.isOnDuty && l.isStale).length;
+    const offDutyCount = locations.filter(l => !l.isOnDuty).length;
 
     return (
       <div className="flex flex-col h-[calc(100vh-6rem)] space-y-4">
@@ -151,6 +154,12 @@ export default function AdminTrackingPage() {
                 {inactiveCount} Location Off
               </div>
             )}
+            {offDutyCount > 0 && (
+              <div className="bg-slate-50 text-slate-500 px-4 py-2 rounded-full text-xs font-bold border border-slate-200 flex items-center gap-2">
+                <div className="w-2.5 h-2.5 bg-slate-400 rounded-full"></div>
+                {offDutyCount} Off Duty
+              </div>
+            )}
           </div>
         </div>
 
@@ -158,7 +167,7 @@ export default function AdminTrackingPage() {
         {/* Sidebar Table */}
         <div className="w-full lg:w-96 bg-white rounded-3xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
           <div className="p-4 bg-slate-50/50 border-b border-slate-100">
-            <h3 className="font-bold text-slate-700 text-sm">Engineers On Duty</h3>
+            <h3 className="font-bold text-slate-700 text-sm">Field Engineers</h3>
           </div>
           <div className="flex-1 overflow-y-auto">
             {locations.length === 0 ? (
@@ -183,29 +192,37 @@ export default function AdminTrackingPage() {
                         <div className={`w-1.5 h-1.5 rounded-full ${loc.batteryLevel && loc.batteryLevel > 20 ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
                         {loc.batteryLevel || 0}% Battery
                       </div>
-                      {loc.isOnDuty && (
+                      {loc.isOnDuty ? (
                         <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-[9px] font-extrabold uppercase">On Duty</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[9px] font-extrabold uppercase">Off Duty</span>
                       )}
                     </div>
 
-                    {loc.isStale && loc.isOnDuty ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 animate-pulse">
-                          <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
-                          <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Location Stale (Lost Connection)</span>
+                    {loc.isOnDuty ? (
+                      loc.isStale ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 animate-pulse">
+                            <div className="w-2 h-2 bg-rose-500 rounded-full"></div>
+                            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Location Stale (Lost Connection)</span>
+                          </div>
+                          <p className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">
+                            Last seen: {loc.address || 'Unknown'}
+                          </p>
                         </div>
-                        <p className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">
-                          Last seen: {loc.address || 'Unknown'}
+                      ) : !loc.lat ? (
+                        <div className="flex items-center gap-2 text-slate-400 italic text-[11px] p-2 bg-slate-50 rounded-lg">
+                          <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
+                          🛰️ Syncing location...
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                          {loc.address || 'Locating...'}
                         </p>
-                      </div>
-                    ) : !loc.lat ? (
-                      <div className="flex items-center gap-2 text-slate-400 italic text-[11px] p-2 bg-slate-50 rounded-lg">
-                        <div className="w-2 h-2 bg-slate-300 rounded-full animate-bounce"></div>
-                        🛰️ Syncing location...
-                      </div>
+                      )
                     ) : (
-                      <p className="text-[11px] text-slate-400 line-clamp-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                        {loc.address || 'Locating...'}
+                      <p className="text-[11px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-slate-100 italic">
+                        Shift complete. Location tracking deactivated.
                       </p>
                     )}
                   </div>

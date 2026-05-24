@@ -43,6 +43,20 @@ export const updateLocation = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    // Verify employee has an active punch-in (is on-duty)
+    const activeAttendance = await prisma.attendance.findFirst({
+      where: {
+        employeeId,
+        status: 'PRESENT',
+        punchOutTime: null
+      }
+    });
+
+    if (!activeAttendance) {
+      res.status(200).json({ message: 'Tracking stopped: Employee is off duty' });
+      return;
+    }
+
     // Try to get address
     let address = await reverseGeocode(latitude, longitude);
     if (!address) {
