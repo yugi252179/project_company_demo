@@ -22,6 +22,8 @@ import hospitalRouter from './routes/hospital';
 import serviceRouter from './routes/service';
 import socialRouter from './routes/social';
 import ticketRouter from './routes/ticket';
+import uploadRouter from './routes/upload';
+import path from 'path';
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -44,6 +46,7 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, '../../uploads')));
 
 // Request Logger
 app.use((req, res, next) => {
@@ -65,6 +68,7 @@ app.use('/api/hospitals', hospitalRouter);
 app.use('/api/service', serviceRouter);
 app.use('/api/social', socialRouter);
 app.use('/api/tickets', ticketRouter);
+app.use('/api/upload', uploadRouter);
 
 app.get('/', (req, res) => {
   res.send('Sonoray ERP Backend is running! Use /health for status.');

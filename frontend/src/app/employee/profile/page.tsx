@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiUser, FiMail, FiPhone, FiLock, FiCheckCircle, FiShield, FiBriefcase } from 'react-icons/fi';
 
@@ -16,6 +16,8 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -100,6 +102,39 @@ export default function ProfilePage() {
       setError('Network error occurred. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('image', file);
+
+    setUploadingImage(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/api/upload`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setProfileImage(data.url);
+        setSuccess('Image uploaded! Click "Save Profile Settings" to apply.');
+      } else {
+        const err = await res.json();
+        setError(err.message || 'Failed to upload image');
+      }
+    } catch (err) {
+      setError('Network error during upload');
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -221,15 +256,32 @@ export default function ProfilePage() {
 
 
           <div className="space-y-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Profile Image URL</label>
-            <div className="input-group relative flex items-center border border-slate-200 rounded-2xl bg-slate-50/50 transition-all">
-              <FiUser className="absolute left-4 text-slate-400 pointer-events-none" />
-              <input
-                type="url"
-                value={profileImage}
-                onChange={e => setProfileImage(e.target.value)}
-                placeholder="https://example.com/my-photo.jpg"
-                className="w-full pl-12 pr-4 py-4 bg-transparent border-none rounded-2xl text-sm font-bold text-slate-700 outline-none"
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Profile Image</label>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="input-group relative flex flex-1 items-center border border-slate-200 rounded-2xl bg-slate-50/50 transition-all">
+                <FiUser className="absolute left-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="url"
+                  value={profileImage}
+                  onChange={e => setProfileImage(e.target.value)}
+                  placeholder="https://example.com/my-photo.jpg"
+                  className="w-full pl-12 pr-4 py-4 bg-transparent border-none rounded-2xl text-sm font-bold text-slate-700 outline-none"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="px-6 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold text-sm hover:bg-slate-200 transition-all border border-slate-200 disabled:opacity-50 whitespace-nowrap"
+              >
+                {uploadingImage ? 'Uploading...' : 'Upload from Device'}
+              </button>
+              <input 
+                type="file" 
+                ref={fileInputRef}
+                onChange={handleFileUpload}
+                accept="image/*"
+                className="hidden" 
               />
             </div>
           </div>
