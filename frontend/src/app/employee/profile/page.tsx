@@ -162,7 +162,7 @@ export default function ProfilePage() {
                 src={profileImage} 
                 alt="Profile" 
                 className="w-full h-full object-cover" 
-                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                onError={() => { setProfileImage(''); }}
               />
             ) : (
               <>{firstName?.[0]}{lastName?.[0]}</>
