@@ -59,9 +59,11 @@ function FlyToEmployee({
   const map = useMap();
   useEffect(() => {
     if (!focusedId) return;
-    const target = locations.find((l) => l.id === focusedId && l.lat !== null && l.lng !== null);
+    const target = locations.find(
+      (l) => l.id === focusedId && Number.isFinite(l.lat) && Number.isFinite(l.lng)
+    );
     if (target) {
-      map.flyTo([target.lat!, target.lng!], 16, { animate: true, duration: 1.2 });
+      map.flyTo([target.lat as number, target.lng as number], 16, { animate: true, duration: 1.2 });
     }
   }, [focusedId, locations, map]);
   return null;
@@ -81,10 +83,10 @@ export default function MapComponent({
   }, []);
 
   // Auto-center based on first valid location on initial load
-  const validLocations = locations.filter((l) => l.lat !== null && l.lng !== null);
+  const validLocations = locations.filter((l) => Number.isFinite(l.lat) && Number.isFinite(l.lng));
   const mapCenter: [number, number] =
     validLocations.length > 0 && center[0] === 0
-      ? [validLocations[0].lat!, validLocations[0].lng!]
+      ? [validLocations[0].lat as number, validLocations[0].lng as number]
       : center;
   const mapZoom = locations.length > 0 && zoom === 2 ? 14 : zoom;
 
@@ -105,7 +107,7 @@ export default function MapComponent({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {locations
-          .filter((l) => l.lat !== null && l.lng !== null)
+          .filter((l) => Number.isFinite(l.lat) && Number.isFinite(l.lng))
           .map((loc) => {
             const greyIcon = new L.Icon({
               iconUrl:

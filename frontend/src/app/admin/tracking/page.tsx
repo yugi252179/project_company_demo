@@ -51,7 +51,7 @@ interface CardProps {
 
 function EmployeeCard({ loc, compact = false, selectedId, onSelect }: CardProps) {
   const isSelected = selectedId === loc.id;
-  const hasLoc     = loc.lat !== null && loc.lng !== null;
+  const hasLoc     = Number.isFinite(loc.lat) && Number.isFinite(loc.lng);
   const size       = compact ? 36 : 40;
 
   return (
