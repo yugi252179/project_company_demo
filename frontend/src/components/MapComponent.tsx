@@ -57,17 +57,32 @@ function FlyToEmployee({
   focusedId: string | null | undefined;
 }) {
   const map = useMap();
+
   useEffect(() => {
     if (!focusedId) return;
-    const target = locations.find(
-      (l) => l.id === focusedId && Number.isFinite(l.lat) && Number.isFinite(l.lng)
-    );
-    if (target) {
-      map.flyTo([target.lat as number, target.lng as number], 16, { animate: true, duration: 1.2 });
+
+    const target = locations.find((l) => l.id === focusedId);
+    if (!target) return;
+
+    // Parse through Number() first — handles string coords from API
+    const lat = Number(target.lat);
+    const lng = Number(target.lng);
+
+    // isFinite rejects NaN, Infinity, and anything that didn't parse
+    if (!isFinite(lat) || !isFinite(lng)) return;
+
+    try {
+      map.flyTo([lat, lng], 16, { animate: true, duration: 1.2 });
+    } catch (e) {
+      console.warn('flyTo failed:', e);
     }
-  }, [focusedId, locations, map]);
+  // Only re-run when the selected ID changes — NOT on every location tick
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusedId, map]);
+
   return null;
 }
+
 
 export default function MapComponent({
   locations,
